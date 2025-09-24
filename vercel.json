@@ -1,0 +1,59 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "ifc-viewer.html", 
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/wasm/(.*)",
+      "dest": "/public/wasm/$1"
+    },
+    {
+      "src": "/(.*\\.ifc)",
+      "dest": "/public/$1"
+    },
+    {
+      "src": "/viewer",
+      "dest": "/ifc-viewer.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*\\.ifc)",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/octet-stream"
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        }
+      ]
+    },
+    {
+      "source": "/(.*\\.wasm)",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/wasm"
+        },
+        {
+          "key": "Access-Control-Allow-Origin", 
+          "value": "*"
+        }
+      ]
+    }
+  ]
+}

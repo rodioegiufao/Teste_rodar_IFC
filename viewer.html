@@ -91,6 +91,14 @@
     .hidden {
       display: none !important;
     }
+    
+    .error {
+      color: #ff6b6b !important;
+      background: rgba(255, 107, 107, 0.1);
+      padding: 10px;
+      border-radius: 5px;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
@@ -107,16 +115,38 @@
         </div>
         <div id="loading-percentage">0%</div>
         <div id="loading-details" style="margin-top: 10px; font-size: 14px; color: #ccc;"></div>
+        
+        <!-- Área para soluções alternativas -->
+        <div id="alternative-solutions" style="margin-top: 20px; display: none;">
+          <button id="try-alternative" style="background: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer;">
+            Tentar Carregamento Alternativo
+          </button>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- CARREGAMENTO DAS BIBLIOTECAS -->
+  <!-- CARREGAMENTO DAS BIBLIOTECAS BASE -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
+  <!-- CARREGAMENTO CORRETO DAS BIBLIOTECAS IFC -->
+  <script type="module">
+    // ===== SOLUÇÃO MODERNA USANDO MÓDULOS ES6 =====
+    
+    import { IfcAPI } from 'https://cdn.jsdelivr.net/npm/web-ifc@0.0.43/web-ifc-api.js';
+    import { IfcLoader } from 'https://cdn.jsdelivr.net/npm/web-ifc-three@0.0.119/dist/web-ifc-three.module.js';
+    
+    // Expor para o escopo global para o código principal acessar
+    window.WebIFC = { IfcAPI };
+    window.WebIFCThree = { IfcLoader };
+    
+    console.log('✅ Módulos IFC carregados com sucesso via ES6');
+    window.dispatchEvent(new CustomEvent('ifc-modules-loaded'));
+  </script>
+
   <script>
-    // ===== CÓDIGO OTIMIZADO E CORRIGIDO =====
+    // ===== CÓDIGO PRINCIPAL - AGUARDA CARREGAMENTO DOS MÓDULOS =====
     
     class IFCPGEViewer {
       constructor() {
@@ -126,6 +156,7 @@
         this.controls = null;
         this.ifcLoader = null;
         this.models = [];
+        this.modulesLoaded = false;
         
         this.elements = {
           loadingOverlay: document.getElementById('loading-overlay'),
@@ -133,19 +164,20 @@
           loadingProgress: document.getElementById('loading-progress'),
           loadingPercentage: document.getElementById('loading-percentage'),
           loadingDetails: document.getElementById('loading-details'),
-          viewerContainer: document.getElementById('viewer-container')
+          viewerContainer: document.getElementById('viewer-container'),
+          alternativeSolutions: document.getElementById('alternative-solutions'),
+          tryAlternative: document.getElementById('try-alternative')
         };
         
         this.MODEL_URLS = [
           '/public/IFC-ELE-SEINF-PGE.ifc'
-          // Adicione mais URLs aqui se necessário
         ];
       }
       
       async init() {
         try {
           await this.setupThreeJS();
-          await this.loadIFCLibraries();
+          await this.waitForIFCModules();
           await this.setupIFCLoader();
           await this.loadModels();
           this.setupEventListeners();
@@ -181,10 +213,58 @@
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
         
-        // Iluminação profissional
+        // Iluminação
         this.setupLighting();
         
         this.updateLoading('Ambiente 3D configurado', 30);
+      }
+      
+      async waitForIFCModules() {
+        this.updateLoading('Aguardando carregamento das bibliotecas IFC...', 40);
+        
+        // Se já carregou, prossegue
+        if (window.WebIFC && window.WebIFCThree) {
+          this.modulesLoaded = true;
+          this.updateLoading('Bibliotecas IFC carregadas', 60);
+          return;
+        }
+        
+        // Aguarda o evento de carregamento dos módulos
+        return new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('Timeout no carregamento das bibliotecas IFC'));
+          }, 15000); // 15 segundos timeout
+          
+          window.addEventListener('ifc-modules-loaded', () => {
+            clearTimeout(timeout);
+            this.modulesLoaded = true;
+            this.updateLoading('Bibliotecas IFC carregadas com sucesso', 60);
+            resolve();
+          });
+        });
+      }
+      
+      async setupIFCLoader() {
+        if (!this.modulesLoaded) {
+          throw new Error('Módulos IFC não carregados');
+        }
+        
+        this.updateLoading('Configurando carregador IFC...', 70);
+        
+        try {
+          // Inicializar API IFC
+          this.ifcAPI = new window.WebIFC.IfcAPI();
+          await this.ifcAPI.Init();
+          
+          // Configurar loader
+          this.ifcLoader = new window.WebIFCThree.IfcLoader();
+          this.ifcLoader.ifcManager.setWasmPath("https://cdn.jsdelivr.net/npm/web-ifc@0.0.43/");
+          
+          this.updateLoading('Carregador IFC configurado', 80);
+          
+        } catch (error) {
+          throw new Error(`Erro na configuração IFC: ${error.message}`);
+        }
       }
       
       setupLighting() {
@@ -203,75 +283,15 @@
         this.scene.add(directionalLight2);
       }
       
-      async loadIFCLibraries() {
-        this.updateLoading('Carregando bibliotecas IFC...', 40);
-        
-        return new Promise((resolve, reject) => {
-          // Verificar se já está carregado (para recarregamentos)
-          if (window.WebIFC && window.WebIFCThree) {
-            resolve();
-            return;
-          }
-          
-          const script1 = document.createElement('script');
-          script1.src = 'https://cdn.jsdelivr.net/npm/web-ifc@0.0.43/web-ifc-api.js';
-          
-          script1.onload = () => {
-            this.updateLoading('Biblioteca WebIFC carregada', 60);
-            
-            const script2 = document.createElement('script');
-            script2.src = 'https://cdn.jsdelivr.net/npm/web-ifc-three@0.0.119/dist/web-ifc-three.js';
-            
-            script2.onload = () => {
-              this.updateLoading('Bibliotecas IFC carregadas com sucesso', 80);
-              
-              // Pequeno delay para garantir inicialização
-              setTimeout(() => {
-                if (window.WebIFC && window.WebIFCThree) {
-                  resolve();
-                } else {
-                  reject(new Error('Bibliotecas IFC não inicializadas corretamente'));
-                }
-              }, 100);
-            };
-            
-            script2.onerror = () => reject(new Error('Falha ao carregar web-ifc-three'));
-            document.head.appendChild(script2);
-          };
-          
-          script1.onerror = () => reject(new Error('Falha ao carregar web-ifc'));
-          document.head.appendChild(script1);
-        });
-      }
-      
-      async setupIFCLoader() {
-        this.updateLoading('Configurando carregador IFC...', 85);
-        
-        try {
-          // Inicializar API IFC
-          this.ifcAPI = new WebIFC.IfcAPI();
-          await this.ifcAPI.Init();
-          
-          // Configurar loader
-          this.ifcLoader = new WebIFCThree.IfcLoader();
-          this.ifcLoader.ifcManager.setWasmPath("https://cdn.jsdelivr.net/npm/web-ifc@0.0.43/");
-          
-          this.updateLoading('Carregador IFC configurado', 90);
-          
-        } catch (error) {
-          throw new Error(`Erro na configuração IFC: ${error.message}`);
-        }
-      }
-      
       async loadModels() {
-        this.updateLoading('Preparando para carregar modelos...', 92);
+        this.updateLoading('Preparando para carregar modelos...', 85);
         
         for (let i = 0; i < this.MODEL_URLS.length; i++) {
           const modelUrl = this.MODEL_URLS[i];
           await this.loadSingleModel(modelUrl, i);
         }
         
-        this.updateLoading('Todos os modelos carregados!', 100);
+        this.updateLoading('Modelo carregado com sucesso!', 100);
         
         // Ocultar loading suavemente
         setTimeout(() => {
@@ -280,7 +300,7 @@
       }
       
       async loadSingleModel(url, index) {
-        this.updateLoading(`Carregando modelo ${index + 1}/${this.MODEL_URLS.length}...`, 92 + (index * 2));
+        this.updateLoading(`Carregando modelo IFC...`, 90);
         this.elements.loadingDetails.textContent = `Arquivo: ${url.split('/').pop()}`;
         
         try {
@@ -288,16 +308,14 @@
           this.scene.add(model);
           this.models.push(model);
           
-          // Ajustar câmera para o primeiro modelo
-          if (index === 0) {
-            this.fitModelToView(model);
-          }
+          // Ajustar câmera
+          this.fitModelToView(model);
           
-          console.log(`✅ Modelo ${index + 1} carregado:`, url);
+          console.log(`✅ Modelo carregado:`, url);
           
         } catch (error) {
           console.error(`❌ Erro ao carregar modelo ${url}:`, error);
-          this.elements.loadingDetails.innerHTML += `<br><span style="color: #ff6b6b;">Erro em ${url}: ${error.message}</span>`;
+          throw new Error(`Falha no carregamento do arquivo IFC: ${error.message}`);
         }
       }
       
@@ -331,10 +349,22 @@
           this.renderer.setSize(window.innerWidth, window.innerHeight);
         });
         
-        // Prevenir contexto menu no canvas
-        this.renderer.domElement.addEventListener('contextmenu', (e) => {
-          e.preventDefault();
-        });
+        // Botão de alternativa
+        if (this.elements.tryAlternative) {
+          this.elements.tryAlternative.addEventListener('click', () => {
+            this.tryAlternativeLoad();
+          });
+        }
+      }
+      
+      tryAlternativeLoad() {
+        this.elements.loadingDetails.innerHTML += '<br><br>🔄 Tentando carregamento alternativo...';
+        this.updateLoading('Tentando abordagem alternativa...', 10);
+        
+        // Recarregar a página forçando cache limpo
+        setTimeout(() => {
+          window.location.reload(true);
+        }, 1000);
       }
       
       animate() {
@@ -348,23 +378,38 @@
         
         this.updateLoading('Erro ao inicializar visualizador', 0);
         this.elements.loadingDetails.innerHTML = `
-          <div style="color: #ff6b6b; margin-top: 15px;">
+          <div class="error">
             <strong>Erro:</strong> ${error.message}
           </div>
           <div style="margin-top: 10px; font-size: 12px;">
-            Verifique:<br>
-            - Conexão com internet<br>
-            - URL do modelo IFC<br>
-            - Console (F12) para detalhes
+            Possíveis soluções:<br>
+            1. Verifique a conexão com internet<br>
+            2. Tente o carregamento alternativo abaixo<br>
+            3. Verifique se o arquivo IFC existe em: ${this.MODEL_URLS[0]}
           </div>
         `;
+        
+        // Mostrar botão de alternativa
+        this.elements.alternativeSolutions.style.display = 'block';
       }
     }
     
-    // Inicializar quando a página carregar
-    window.addEventListener('load', () => {
-      const viewer = new IFCPGEViewer();
-      viewer.init();
+    // Inicialização segura com tratamento de erros globais
+    window.addEventListener('load', async () => {
+      try {
+        const viewer = new IFCPGEViewer();
+        await viewer.init();
+      } catch (error) {
+        console.error('Erro fatal na inicialização:', error);
+        document.getElementById('loading-text').textContent = 'Erro fatal na inicialização';
+        document.getElementById('loading-details').innerHTML = 
+          `<div class="error">Erro crítico: ${error.message}</div>`;
+      }
+    });
+    
+    // Fallback para caso os módulos falhem
+    window.addEventListener('error', (event) => {
+      console.error('Erro global capturado:', event.error);
     });
   </script>
 </body>

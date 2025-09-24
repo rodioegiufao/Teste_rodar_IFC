@@ -21,37 +21,18 @@
             margin: 20px;
         }
         a:hover { background: #0056b3; }
-        #status {
-            margin-top: 20px;
-            color: #666;
-        }
     </style>
 </head>
 <body>
     <h1>🏗️ Visualizador IFC PGE</h1>
     <p>Clique para visualizar o modelo 3D:</p>
     
-    <!-- LINK CORRIGIDO -->
-    <a href="./viewer.html">🔗 ABRIR VISUALIZADOR 3D</a>
+    <!-- LINK DIRETO E ABSOLUTO -->
+    <a href="https://teste-rodar-ifc.vercel.app/viewer.html" 
+       target="_blank">
+       🔗 ABRIR VISUALIZADOR 3D
+    </a>
     
-    <div id="status">
-        <p><strong>Arquivo:</strong> IFC-ELE-SEINF-PGE.ifc</p>
-        <p><strong>Status:</strong> <span id="loadStatus">Pronto para carregar</span></p>
-    </div>
-
-    <script>
-        // Testar se o arquivo viewer.html existe
-        fetch('./viewer.html')
-            .then(response => {
-                if (response.ok) {
-                    document.getElementById('loadStatus').textContent = '✅ Visualizador disponível';
-                } else {
-                    document.getElementById('loadStatus').textContent = '❌ Visualizador não encontrado';
-                }
-            })
-            .catch(error => {
-                document.getElementById('loadStatus').textContent = '❌ Erro ao verificar visualizador';
-            });
-    </script>
+    <p><strong>Arquivo:</strong> IFC-ELE-SEINF-PGE.ifc</p>
 </body>
 </html>

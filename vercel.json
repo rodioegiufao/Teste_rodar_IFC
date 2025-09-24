@@ -2,13 +2,17 @@
   "version": 2,
   "builds": [
     {
-      "src": "*.html",
+      "src": "index.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "ifc-viewer.html", 
       "use": "@vercel/static"
     }
   ],
   "routes": [
     {
-      "src": "/public/(.*)",
+      "src": "/(.*\\.ifc)",
       "dest": "/public/$1"
     },
     {

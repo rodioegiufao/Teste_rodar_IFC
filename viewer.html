@@ -4,8 +4,11 @@
     <title>Visualizador IFC - PGE</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://unpkg.com/web-ifc@0.0.44/web-ifc-api.js"></script>
-    <script src="https://unpkg.com/web-ifc-three@0.0.120/dist/web-ifc-three.js"></script>
+    
+    <!-- USAR VERSÃO COMPATÍVEL COM SCRIPTS TRADICIONAIS -->
+    <script src="https://cdn.jsdelivr.net/npm/web-ifc@0.0.42/web-ifc-api.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/web-ifc-three@0.0.118/dist/web-ifc-three.js"></script>
+    
     <style>
         body { margin: 0; background: #000; overflow: hidden; }
         #info { 
@@ -59,6 +62,11 @@
     </div>
 
     <script>
+        // Verificar se as bibliotecas carregaram corretamente
+        console.log('Three.js:', typeof THREE);
+        console.log('WebIFC:', typeof WebIFC);
+        console.log('WebIFCThree:', typeof WebIFCThree);
+        
         // Elementos UI
         const statusElement = document.getElementById('status');
         const progressBar = document.getElementById('progress-bar');
@@ -84,9 +92,20 @@
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         
+        // Função para atualizar status
+        function updateStatus(message, progress) {
+            statusElement.textContent = message;
+            progressBar.style.width = progress + '%';
+        }
+        
         // Carregar IFC
         async function loadIFC() {
             try {
+                // Verificar se WebIFC está disponível
+                if (typeof WebIFC === 'undefined') {
+                    throw new Error('WebIFC não carregou corretamente');
+                }
+                
                 updateStatus('🚀 Inicializando IFC.js...', 10);
                 
                 const ifcAPI = new WebIFC.IfcAPI();
@@ -94,12 +113,17 @@
                 
                 updateStatus('📦 Configurando loader...', 30);
                 
+                // Verificar se WebIFCThree está disponível
+                if (typeof WebIFCThree === 'undefined') {
+                    throw new Error('WebIFCThree não carregou corretamente');
+                }
+                
                 const ifcLoader = new WebIFCThree.IfcLoader();
-                ifcLoader.ifcManager.setWasmPath("https://unpkg.com/web-ifc@0.0.44/");
+                ifcLoader.ifcManager.setWasmPath("https://cdn.jsdelivr.net/npm/web-ifc@0.0.42/");
                 
                 updateStatus('🔗 Conectando com arquivo IFC...', 50);
                 
-                // URL CORRETA para o arquivo IFC
+                // URL do arquivo IFC
                 const modelURL = '/public/IFC-ELE-SEINF-PGE.ifc';
                 detailsElement.textContent = `Arquivo: ${modelURL}`;
                 
@@ -125,19 +149,17 @@
                 
                 // Ocultar informações após alguns segundos
                 setTimeout(() => {
-                    document.getElementById('info').style.opacity = '0.5';
-                }, 3000);
+                    document.getElementById('info').style.opacity = '0.3';
+                }, 5000);
                 
             } catch (error) {
                 console.error('Erro ao carregar IFC:', error);
                 updateStatus('❌ Erro ao carregar IFC', 0);
-                detailsElement.innerHTML = `Erro: ${error.message}<br>Verifique o console (F12)`;
+                detailsElement.innerHTML = `Erro: ${error.message}<br>
+                                           Three.js: ${typeof THREE}<br>
+                                           WebIFC: ${typeof WebIFC}<br>
+                                           WebIFCThree: ${typeof WebIFCThree}`;
             }
-        }
-        
-        function updateStatus(message, progress) {
-            statusElement.textContent = message;
-            progressBar.style.width = progress + '%';
         }
         
         // Animação
@@ -154,9 +176,25 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
         
-        // Iniciar
-        animate();
-        loadIFC();
+        // Aguardar as bibliotecas carregarem
+        function checkLibrariesLoaded() {
+            if (typeof THREE !== 'undefined' && 
+                typeof WebIFC !== 'undefined' && 
+                typeof WebIFCThree !== 'undefined') {
+                
+                updateStatus('✅ Bibliotecas carregadas', 5);
+                setTimeout(() => {
+                    loadIFC();
+                    animate();
+                }, 1000);
+                
+            } else {
+                setTimeout(checkLibrariesLoaded, 100);
+            }
+        }
+        
+        // Iniciar verificação
+        checkLibrariesLoaded();
     </script>
 </body>
 </html>

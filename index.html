@@ -33,50 +33,19 @@
             background: #0056b3; 
             transform: scale(1.05);
         }
-        .test-link {
-            display: block;
-            margin: 20px 0;
-            color: #66b3ff;
-            text-decoration: underline;
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🏗️ Visualizador IFC PGE</h1>
-        <p>Clique para visualizar o modelo 3D:</p>
+        <p>Visualize o modelo BIM IFC diretamente no navegador</p>
         
-        <!-- BOTÃO PRINCIPAL -->
-        <a class="btn" href="viewer.html" target="_blank">
-            🔗 ABRIR VISUALIZADOR 3D (NOVA ABA)
+        <a class="btn" href="viewer.html">
+            🔗 ABRIR VISUALIZADOR IFC
         </a>
         
         <p><strong>Arquivo:</strong> IFC-ELE-SEINF-PGE.ifc</p>
-        
-        <!-- LINK DIRETO PARA COPIAR -->
-        <a class="test-link" href="https://teste-rodar-ifc.vercel.app/viewer.html" target="_blank">
-            🔗 Link direto: https://teste-rodar-ifc.vercel.app/viewer.html
-        </a>
-        
-        <div style="margin-top: 30px; padding: 15px; background: #333; border-radius: 5px;">
-            <strong>Se não abrir:</strong>
-            <ol style="text-align: left; display: inline-block;">
-                <li>Clique com botão direito → "Abrir em nova aba"</li>
-                <li>Ou copie o link acima e cole no navegador</li>
-                <li>Ou teste o link direto abaixo</li>
-            </ol>
-        </div>
+        <p><strong>Status:</strong> ✅ Configurado com sucesso</p>
     </div>
-
-    <script>
-        // Testar se o viewer existe
-        fetch('viewer.html')
-            .then(response => {
-                if (!response.ok) {
-                    document.querySelector('.btn').style.background = '#dc3545';
-                    document.querySelector('.btn').textContent = '❌ Visualizador não encontrado';
-                }
-            });
-    </script>
 </body>
 </html>

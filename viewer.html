@@ -77,8 +77,8 @@
   </div>
 
   <!-- CARREGAMENTO CORRETO DAS BIBLIOTECAS -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/web-ifc@0.0.34/webifc.wasm.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/web-ifc-three@0.0.117/dist/web-ifc-three.browser.js"></script>
   
   <!-- USAR O MESMO MÉTODO DO CÓDIGO FUNCIONAL: bundle.js personalizado -->
   <script>
@@ -142,7 +142,33 @@
     async function initViewer() {
       try {
         updateStatus('Inicializando Three.js...', 5);
+        // Adicione antes do seu código Three.js
+        window.addEventListener('error', function(e) {
+            console.error('Erro global capturado:', e.error);
+        });
         
+        // Verifique se as bibliotecas carregaram corretamente
+        function checkLibraries() {
+            if (typeof WebIFC === 'undefined') {
+                console.error('WebIFC não carregou');
+                return false;
+            }
+            if (typeof WebIFCThree === 'undefined') {
+                console.error('WebIFCThree não carregou');
+                return false;
+            }
+            return true;
+        }
+        
+        // Aguarde o carregamento completo
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                if (!checkLibraries()) {
+                    console.log('Tentando carregar fallback...');
+                    // Código de fallback aqui
+                }
+            }, 1000);
+        });
         // Configuração Three.js
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x2a2a2a);

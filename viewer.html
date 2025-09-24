@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Visualizador IFC</title>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://unpkg.com/web-ifc@0.0.44/web-ifc-api.js"></script>
+    <script src="https://unpkg.com/web-ifc-three@0.0.120/dist/web-ifc-three.js"></script>
+    <style>
+        body { 
+            margin: 0; 
+            background: #000;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: Arial;
+            z-index: 100;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">Carregando IFC...</div>
+
+    <script>
+        // Configuração básica do Three.js
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x222222);
+        
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+        
+        // Luz simples
+        const light = new THREE.AmbientLight(0x404040);
+        scene.add(light);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(1, 1, 1);
+        scene.add(dirLight);
+        
+        // Controles de câmera
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        
+        // Carregar IFC automaticamente
+        async function loadIFC() {
+            try {
+                const ifcAPI = new WebIFC.IfcAPI();
+                await ifcAPI.Init();
+                
+                const ifcLoader = new WebIFCThree.IfcLoader();
+                ifcLoader.ifcManager.setWasmPath("https://unpkg.com/web-ifc@0.0.44/");
+                ifcLoader.setupIfcLoader(ifcAPI, scene);
+                
+                // CARREGA DIRETO O ARQUIVO IFC
+                const model = await ifcLoader.load('/public/IFC-ELE-SEINF-PGE.ifc');
+                
+                // Ajusta a câmera
+                const box = new THREE.Box3().setFromObject(model);
+                const center = box.getCenter(new THREE.Vector3());
+                const size = box.getSize(new THREE.Vector3());
+                
+                camera.position.copy(center);
+                camera.position.z += size.length() * 1.5;
+                controls.target.copy(center);
+                controls.update();
+                
+                document.getElementById('info').textContent = 'IFC Carregado!';
+                
+            } catch (error) {
+                console.error('Erro:', error);
+                document.getElementById('info').textContent = 'Erro ao carregar IFC';
+                document.getElementById('info').style.color = 'red';
+            }
+        }
+        
+        // Animação
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        // Inicia tudo
+        loadIFC();
+        animate();
+        
+        // Redimensionamento
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

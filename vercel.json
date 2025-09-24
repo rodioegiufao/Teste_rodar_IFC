@@ -8,8 +8,12 @@
   ],
   "routes": [
     {
-      "src": "/(.*\\.ifc)",
+      "src": "/public/(.*)",
       "dest": "/public/$1"
+    },
+    {
+      "src": "/viewer.html",
+      "dest": "/viewer.html"
     },
     {
       "src": "/(.*)",

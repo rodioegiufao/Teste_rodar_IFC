@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Visualizador IFC</title>
+    <title>Visualizador IFC - Carregando...</title>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
     <script src="https://unpkg.com/web-ifc@0.0.44/web-ifc-api.js"></script>
@@ -10,46 +10,69 @@
         body { 
             margin: 0; 
             background: #000;
+            overflow: hidden;
         }
-        #info {
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-family: Arial;
+            font-size: 18px;
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 1000;
+        }
+        #back {
             position: absolute;
             top: 10px;
             left: 10px;
             color: white;
-            font-family: Arial;
-            z-index: 100;
             background: rgba(0,0,0,0.7);
             padding: 10px;
             border-radius: 5px;
+            z-index: 1000;
+            text-decoration: none;
         }
     </style>
 </head>
 <body>
-    <div id="info">Carregando IFC...</div>
+    <a id="back" href="./index.html">← Voltar</a>
+    <div id="loading">Carregando visualizador IFC...</div>
 
     <script>
+        // Elementos da UI
+        const loadingElement = document.getElementById('loading');
+        
         // Configuração básica do Three.js
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x222222);
         
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 0, 10);
+        
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
         
-        // Luz simples
-        const light = new THREE.AmbientLight(0x404040);
-        scene.add(light);
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-        dirLight.position.set(1, 1, 1);
-        scene.add(dirLight);
+        // Luzes
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(50, 50, 50);
+        scene.add(directionalLight);
         
-        // Controles de câmera
+        // Controles
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
         
-        // Carregar IFC automaticamente
+        // Carregar IFC
         async function loadIFC() {
             try {
+                loadingElement.textContent = 'Inicializando IFC.js...';
+                
                 const ifcAPI = new WebIFC.IfcAPI();
                 await ifcAPI.Init();
                 
@@ -57,25 +80,31 @@
                 ifcLoader.ifcManager.setWasmPath("https://unpkg.com/web-ifc@0.0.44/");
                 ifcLoader.setupIfcLoader(ifcAPI, scene);
                 
-                // CARREGA DIRETO O ARQUIVO IFC
-                const model = await ifcLoader.load('/public/IFC-ELE-SEINF-PGE.ifc');
+                loadingElement.textContent = 'Carregando arquivo IFC...';
+                
+                // Tenta carregar o arquivo IFC
+                const model = await ifcLoader.load('./public/IFC-ELE-SEINF-PGE.ifc');
                 
                 // Ajusta a câmera
                 const box = new THREE.Box3().setFromObject(model);
                 const center = box.getCenter(new THREE.Vector3());
                 const size = box.getSize(new THREE.Vector3());
+                const maxDim = Math.max(size.x, size.y, size.z);
                 
                 camera.position.copy(center);
-                camera.position.z += size.length() * 1.5;
+                camera.position.z += maxDim * 1.5;
                 controls.target.copy(center);
                 controls.update();
                 
-                document.getElementById('info').textContent = 'IFC Carregado!';
+                loadingElement.textContent = '✅ IFC Carregado com Sucesso!';
+                setTimeout(() => {
+                    loadingElement.style.display = 'none';
+                }, 2000);
                 
             } catch (error) {
-                console.error('Erro:', error);
-                document.getElementById('info').textContent = 'Erro ao carregar IFC';
-                document.getElementById('info').style.color = 'red';
+                console.error('Erro ao carregar IFC:', error);
+                loadingElement.innerHTML = '❌ Erro ao carregar IFC<br>Verifique o console (F12)';
+                loadingElement.style.color = '#ff6b6b';
             }
         }
         
@@ -86,15 +115,17 @@
             renderer.render(scene, camera);
         }
         
-        // Inicia tudo
-        loadIFC();
-        animate();
-        
         // Redimensionamento
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // Iniciar quando a página carregar
+        window.addEventListener('load', () => {
+            loadIFC();
+            animate();
         });
     </script>
 </body>

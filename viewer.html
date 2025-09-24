@@ -1,251 +1,246 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
-    <title>Visualizador IFC - PGE</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visualizador IFC - PGE</title>
+  
+  <style>
+    body { 
+      margin: 0; 
+      padding: 0; 
+      background: #1e1e1e;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+    }
     
-    <!-- Three.js Básico -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    #viewer-container {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
     
-    <style>
-        body { 
-            margin: 0; 
-            padding: 0; 
-            background: #000;
-            overflow: hidden;
-        }
-        #container {
-            width: 100vw;
-            height: 100vh;
-            position: relative;
-        }
-        #loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            font-family: Arial;
-            font-size: 18px;
-            text-align: center;
-            background: rgba(0,0,0,0.8);
-            padding: 30px;
-            border-radius: 10px;
-            z-index: 1000;
-        }
-        #back {
-            position: absolute;
-            top: 15px;
-            left: 15px;
-            color: white;
-            background: #007bff;
-            padding: 10px 15px;
-            border-radius: 5px;
-            text-decoration: none;
-            z-index: 1000;
-        }
-    </style>
+    #loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      text-align: center;
+      background: rgba(0,0,0,0.8);
+      padding: 30px;
+      border-radius: 10px;
+      z-index: 1000;
+    }
+    
+    #back {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      color: white;
+      background: #007bff;
+      padding: 10px 15px;
+      border-radius: 5px;
+      text-decoration: none;
+      z-index: 1000;
+    }
+    
+    .progress-bar {
+      width: 300px;
+      height: 10px;
+      background: #333;
+      border-radius: 5px;
+      margin: 15px auto;
+      overflow: hidden;
+    }
+    
+    .progress {
+      height: 100%;
+      background: #007bff;
+      width: 0%;
+      transition: width 0.3s;
+    }
+  </style>
 </head>
 <body>
-    <a id="back" href="index.html">← Voltar</a>
-    <div id="container">
-        <div id="loading">
-            <div>🏗️ Visualizador IFC PGE</div>
-            <div id="status">Inicializando...</div>
-            <div id="progress" style="margin: 15px 0; color: #ccc; font-size: 14px;"></div>
-        </div>
+  <a id="back" href="index.html">← Voltar</a>
+  
+  <div id="viewer-container">
+    <div id="loading">
+      <h3>🏗️ Visualizador IFC PGE</h3>
+      <div id="status">Inicializando...</div>
+      <div class="progress-bar">
+        <div id="progress" class="progress"></div>
+      </div>
+      <div id="details" style="color: #ccc; font-size: 14px;"></div>
     </div>
+  </div>
 
-    <script>
-        // Elementos da UI
-        const statusElement = document.getElementById('status');
-        const progressElement = document.getElementById('progress');
-        const loadingElement = document.getElementById('loading');
+  <!-- CARREGAMENTO CORRETO DAS BIBLIOTECAS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  
+  <!-- USAR O MESMO MÉTODO DO CÓDIGO FUNCIONAL: bundle.js personalizado -->
+  <script>
+    // ===== CONFIGURAÇÃO IDÊNTICA AO CÓDIGO FUNCIONAL =====
+    
+    // Elementos da UI
+    const statusElement = document.getElementById('status');
+    const progressElement = document.getElementById('progress');
+    const detailsElement = document.getElementById('details');
+    const loadingElement = document.getElementById('loading');
+    
+    // Atualizar status (igual ao código funcional)
+    function updateStatus(message, percent = 0) {
+      statusElement.textContent = message;
+      progressElement.style.width = percent + '%';
+      console.log('Status:', message, percent + '%');
+    }
+    
+    // Carregar bibliotecas IFC de forma robusta
+    function loadIFCLibraries() {
+      return new Promise((resolve, reject) => {
+        updateStatus('Carregando bibliotecas IFC...', 10);
         
-        // Configuração básica do Three.js (sempre funciona)
+        // Método do código funcional: carregar versões específicas
+        const scripts = [
+          'https://cdn.jsdelivr.net/npm/web-ifc@0.0.39/web-ifc-api.js',
+          'https://cdn.jsdelivr.net/npm/web-ifc-three@0.0.117/dist/web-ifc-three.js'
+        ];
+        
+        let loaded = 0;
+        
+        scripts.forEach((src, index) => {
+          const script = document.createElement('script');
+          script.src = src;
+          
+          script.onload = () => {
+            loaded++;
+            updateStatus(`Biblioteca ${index + 1}/${scripts.length} carregada`, 10 + (index + 1) * 30);
+            
+            if (loaded === scripts.length) {
+              // Verificar se as bibliotecas carregaram corretamente
+              if (typeof WebIFC !== 'undefined' && typeof WebIFCThree !== 'undefined') {
+                updateStatus('Bibliotecas IFC carregadas com sucesso', 70);
+                resolve();
+              } else {
+                reject(new Error('Bibliotecas IFC não inicializadas corretamente'));
+              }
+            }
+          };
+          
+          script.onerror = () => {
+            reject(new Error(`Falha ao carregar: ${src}`));
+          };
+          
+          document.head.appendChild(script);
+        });
+      });
+    }
+    
+    // Inicializar o visualizador (igual ao código funcional)
+    async function initViewer() {
+      try {
+        updateStatus('Inicializando Three.js...', 5);
+        
+        // Configuração Three.js
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x1a1a1a);
+        scene.background = new THREE.Color(0x2a2a2a);
         
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(5, 5, 5);
-        
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        document.getElementById('container').appendChild(renderer.domElement);
+        document.getElementById('viewer-container').appendChild(renderer.domElement);
         
-        // Luzes básicas
+        // Luzes (configuração profissional igual ao código funcional)
         const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
         scene.add(ambientLight);
+        
         const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight.position.set(10, 10, 5);
+        directionalLight.position.set(50, 50, 50);
         scene.add(directionalLight);
         
         // Controles
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         
-        // Função para atualizar status
-        function updateStatus(message, progress = '') {
-            statusElement.textContent = message;
-            progressElement.textContent = progress;
-            console.log('Status:', message);
-        }
+        updateStatus('Carregando bibliotecas IFC...', 20);
         
-        // Carregar bibliotecas IFC de forma SEGURA
-        function loadIFCLibraries() {
-            return new Promise((resolve, reject) => {
-                updateStatus('📦 Carregando bibliotecas IFC...');
-                
-                // Verificar se já existem (evitar duplicar)
-                if (window.WebIFC && window.WebIFCThree) {
-                    resolve();
-                    return;
-                }
-                
-                // Carregar web-ifc-api.js (versão compatível)
-                const script1 = document.createElement('script');
-                script1.src = 'https://cdn.jsdelivr.net/npm/web-ifc@0.0.39/web-ifc-api.js';
-                
-                script1.onload = function() {
-                    updateStatus('✅ WebIFC carregado', 'Carregando WebIFCThree...');
-                    
-                    // Carregar web-ifc-three.js (versão compatível)
-                    const script2 = document.createElement('script');
-                    script2.src = 'https://cdn.jsdelivr.net/npm/web-ifc-three@0.0.117/dist/web-ifc-three.js';
-                    
-                    script2.onload = function() {
-                        updateStatus('✅ Bibliotecas prontas', 'Inicializando IFC.js...');
-                        resolve();
-                    };
-                    
-                    script2.onerror = function() {
-                        reject(new Error('Falha ao carregar WebIFCThree'));
-                    };
-                    
-                    document.head.appendChild(script2);
-                };
-                
-                script1.onerror = function() {
-                    reject(new Error('Falha ao carregar WebIFC'));
-                };
-                
-                document.head.appendChild(script1);
-            });
-        }
+        // Carregar bibliotecas IFC
+        await loadIFCLibraries();
         
-        // Carregar modelo IFC
-        async function loadIFCModel() {
-            try {
-                updateStatus('🚀 Inicializando IFC.js...');
-                
-                // Verificar se as bibliotecas carregaram
-                if (typeof WebIFC === 'undefined') {
-                    throw new Error('WebIFC não disponível');
-                }
-                
-                const ifcAPI = new WebIFC.IfcAPI();
-                await ifcAPI.Init();
-                
-                updateStatus('🔧 Configurando loader...');
-                
-                if (typeof WebIFCThree === 'undefined') {
-                    throw new Error('WebIFCThree não disponível');
-                }
-                
-                const ifcLoader = new WebIFCThree.IfcLoader();
-                
-                // Configurar caminho do WASM (IMPORTANTE)
-                ifcLoader.ifcManager.setWasmPath("https://cdn.jsdelivr.net/npm/web-ifc@0.0.39/");
-                ifcLoader.setupIfcLoader(ifcAPI, scene);
-                
-                updateStatus('📥 Baixando arquivo IFC...', 'public/IFC-ELE-SEINF-PGE.ifc');
-                
-                // Carregar o modelo
-                const modelURL = '/IFC-ELE-SEINF-PGE.ifc';
-                const model = await ifcLoader.load(modelURL);
-                
-                updateStatus('🎯 Ajustando visualização...');
-                
-                // Ajustar câmera
-                const bbox = new THREE.Box3().setFromObject(model);
-                const center = bbox.getCenter(new THREE.Vector3());
-                const size = bbox.getSize(new THREE.Vector3());
-                const maxDim = Math.max(size.x, size.y, size.z);
-                
-                camera.position.copy(center);
-                camera.position.z += maxDim * 1.5;
-                controls.target.copy(center);
-                controls.update();
-                
-                updateStatus('✅ IFC Carregado com Sucesso!', `${Math.round(size.x)}x${Math.round(size.y)}x${Math.round(size.z)}`);
-                
-                // Ocultar loading após 3 segundos
-                setTimeout(() => {
-                    loadingElement.style.opacity = '0.3';
-                    loadingElement.style.transition = 'opacity 1s';
-                }, 3000);
-                
-            } catch (error) {
-                console.error('Erro detalhado:', error);
-                updateStatus('❌ Erro ao carregar IFC', 'Mostrando fallback...');
-                showFallbackModel(error.message);
-            }
-        }
+        updateStatus('Configurando loader IFC...', 80);
         
-        // Fallback: mostrar um modelo 3D simples
-        function showFallbackModel(errorMsg) {
-            // Criar um objeto 3D simples para demonstrar que o Three.js funciona
-            const geometry = new THREE.BoxGeometry(2, 2, 2);
-            const material = new THREE.MeshPhongMaterial({ color: 0xff0000 });
-            const cube = new THREE.Mesh(geometry, material);
-            scene.add(cube);
-            
-            camera.position.z = 5;
-            controls.update();
-            
-            progressElement.innerHTML = `Erro: ${errorMsg}<br>Three.js está funcionando (cubo vermelho)`;
-        }
+        // Configurar IFC Loader (igual ao código funcional)
+        const ifcAPI = new WebIFC.IfcAPI();
+        await ifcAPI.Init();
         
-        // Animação
+        const ifcLoader = new WebIFCThree.IfcLoader();
+        ifcLoader.ifcManager.setWasmPath("https://cdn.jsdelivr.net/npm/web-ifc@0.0.39/");
+        
+        updateStatus('Carregando modelo IFC...', 90);
+        
+        // Carregar o arquivo IFC
+        const modelURL = '/public/IFC-ELE-SEINF-PGE.ifc';
+        detailsElement.textContent = `Arquivo: ${modelURL}`;
+        
+        const model = await ifcLoader.load(modelURL);
+        scene.add(model);
+        
+        updateStatus('Ajustando visualização...', 95);
+        
+        // Ajustar câmera (método profissional)
+        const box = new THREE.Box3().setFromObject(model);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z);
+        
+        camera.position.copy(center);
+        camera.position.z += maxDim * 1.5;
+        controls.target.copy(center);
+        controls.update();
+        
+        updateStatus('IFC Carregado com Sucesso!', 100);
+        
+        // Ocultar loading após 2 segundos (como no código funcional)
+        setTimeout(() => {
+          loadingElement.style.opacity = '0.3';
+          loadingElement.style.transition = 'opacity 1s';
+        }, 2000);
+        
+        // Animação (loop principal)
         function animate() {
-            requestAnimationFrame(animate);
-            controls.update();
-            renderer.render(scene, camera);
+          requestAnimationFrame(animate);
+          controls.update();
+          renderer.render(scene, camera);
         }
+        animate();
         
         // Redimensionamento
         window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
         });
         
-        // Inicialização principal
-        async function init() {
-            try {
-                updateStatus('✅ Three.js carregado', 'Preparando visualizador...');
-                
-                // Aguardar um pouco para garantir que tudo está pronto
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                // Carregar bibliotecas IFC
-                await loadIFCLibraries();
-                
-                // Carregar modelo IFC
-                await loadIFCModel();
-                
-            } catch (error) {
-                console.error('Erro na inicialização:', error);
-                updateStatus('❌ Falha na inicialização', 'Usando modo fallback...');
-                showFallbackModel(error.message);
-            }
-            
-            // Iniciar animação
-            animate();
-        }
+        console.log('✅ Visualizador IFC inicializado com sucesso!');
         
-        // Iniciar quando a página carregar
-        window.addEventListener('load', init);
-    </script>
+      } catch (error) {
+        console.error('❌ Erro no visualizador:', error);
+        updateStatus('Erro ao carregar visualizador', 0);
+        detailsElement.innerHTML = `
+          <div style="color: #ff6b6b; margin-top: 10px;">
+            <strong>Erro:</strong> ${error.message}
+          </div>
+          <div style="margin-top: 10px; font-size: 12px;">
+            Verifique o console (F12) para detalhes
+          </div>
+        `;
+      }
+    }
+    
+    // Iniciar quando a página carregar
+    window.addEventListener('load', initViewer);
+  </script>
 </body>
 </html>

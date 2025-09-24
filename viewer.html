@@ -99,10 +99,6 @@
       border-radius: 5px;
       margin-top: 10px;
     }
-    
-    .success {
-      color: #28a745 !important;
-    }
   </style>
 </head>
 <body>
@@ -119,18 +115,105 @@
         </div>
         <div id="loading-percentage">0%</div>
         <div id="loading-details" style="margin-top: 10px; font-size: 14px; color: #ccc;"></div>
+        
+        <!-- Área para soluções alternativas -->
+        <div id="alternative-solutions" style="margin-top: 20px; display: none;">
+          <button id="try-alternative" style="background: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer;">
+            Tentar Carregamento Alternativo
+          </button>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- CARREGAMENTO LOCAL DAS BIBLIOTECAS -->
-  <script src="./libs/three.js"></script>
-  <script src="./libs/OrbitControls.js"></script>
-  <script src="./libs/web-ifc-api.js"></script>
-  <script src="./libs/web-ifc-three.js"></script>
+  <!-- CARREGAMENTO DAS BIBLIOTECAS BASE -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+  <!-- CARREGAMENTO DAS BIBLIOTECAS IFC COM WASM LOCAL -->
+  <script type="module">
+    // ===== SOLUÇÃO COM WASM LOCAL =====
+    
+    // Primeiro, vamos definir o caminho local para os arquivos WASM
+    const wasmPath = './public/wasm/';
+    
+    // Função para carregar o WASM localmente
+    async function loadWASMLocally() {
+      try {
+        console.log('🚀 Iniciando carregamento local do WASM...');
+        
+        // Verificar se a pasta existe
+        const response = await fetch(wasmPath);
+        if (!response.ok) {
+          throw new Error(`Pasta WASM não encontrada em: ${wasmPath}`);
+        }
+        
+        // Importar a API do IFC com caminho local
+        const { IfcAPI } = await import('https://cdn.jsdelivr.net/npm/web-ifc@0.0.43/web-ifc-api.js');
+        
+        // Criar instância da API
+        const ifcAPI = new IfcAPI();
+        
+        // Configurar o caminho local para o WASM
+        ifcAPI.SetWasmPath(wasmPath);
+        
+        // Inicializar a API
+        await ifcAPI.Init();
+        
+        console.log('✅ WASM carregado localmente com sucesso!');
+        
+        // Carregar o loader do three.js
+        const { IfcLoader } = await import('https://cdn.jsdelivr.net/npm/web-ifc-three@0.0.119/dist/web-ifc-three.module.js');
+        
+        // Expor para o escopo global
+        window.WebIFC = { IfcAPI: () => ifcAPI };
+        window.WebIFCThree = { IfcLoader };
+        window.ifcAPIInstance = ifcAPI; // Guardar a instância
+        
+        console.log('✅ Módulos IFC carregados com sucesso via WASM local');
+        window.dispatchEvent(new CustomEvent('ifc-modules-loaded'));
+        
+      } catch (error) {
+        console.error('❌ Erro ao carregar WASM local:', error);
+        
+        // Fallback para CDN
+        console.log('🔄 Tentando fallback para CDN...');
+        await loadWASMFromCDN();
+      }
+    }
+    
+    // Fallback para CDN
+    async function loadWASMFromCDN() {
+      try {
+        console.log('🌐 Carregando WASM do CDN...');
+        
+        const { IfcAPI } = await import('https://cdn.jsdelivr.net/npm/web-ifc@0.0.43/web-ifc-api.js');
+        const { IfcLoader } = await import('https://cdn.jsdelivr.net/npm/web-ifc-three@0.0.119/dist/web-ifc-three.module.js');
+        
+        const ifcAPI = new IfcAPI();
+        await ifcAPI.Init();
+        
+        window.WebIFC = { IfcAPI: () => ifcAPI };
+        window.WebIFCThree = { IfcLoader };
+        window.ifcAPIInstance = ifcAPI;
+        
+        console.log('✅ Módulos IFC carregados com sucesso via CDN');
+        window.dispatchEvent(new CustomEvent('ifc-modules-loaded'));
+        
+      } catch (cdnError) {
+        console.error('❌ Erro no fallback do CDN:', cdnError);
+        window.dispatchEvent(new CustomEvent('ifc-modules-error', { 
+          detail: cdnError 
+        }));
+      }
+    }
+    
+    // Iniciar carregamento
+    loadWASMLocally();
+  </script>
 
   <script>
-    // ===== CÓDIGO PRINCIPAL - BIBLIOTECAS LOCAIS =====
+    // ===== CÓDIGO PRINCIPAL - AGUARDA CARREGAMENTO DOS MÓDULOS =====
     
     class IFCPGEViewer {
       constructor() {
@@ -139,7 +222,9 @@
         this.renderer = null;
         this.controls = null;
         this.ifcLoader = null;
+        this.ifcAPI = null;
         this.models = [];
+        this.modulesLoaded = false;
         
         this.elements = {
           loadingOverlay: document.getElementById('loading-overlay'),
@@ -147,57 +232,41 @@
           loadingProgress: document.getElementById('loading-progress'),
           loadingPercentage: document.getElementById('loading-percentage'),
           loadingDetails: document.getElementById('loading-details'),
-          viewerContainer: document.getElementById('viewer-container')
+          viewerContainer: document.getElementById('viewer-container'),
+          alternativeSolutions: document.getElementById('alternative-solutions'),
+          tryAlternative: document.getElementById('try-alternative')
         };
         
-        // URLs locais dos modelos IFC
         this.MODEL_URLS = [
-          './public/ifc-models/IFC-ELE-SEINF-PGE.ifc'
+          './public/IFC-ELE-SEINF-PGE.ifc'
         ];
+        
+        // Configurações WASM
+        this.wasmConfig = {
+          localPath: './public/wasm/',
+          files: [
+            'web-ifc.wasm',
+            'web-ifc-mt.wasm'
+          ]
+        };
       }
       
       async init() {
         try {
-          this.updateLoading('Verificando bibliotecas...', 5);
-          
-          // Verificar se todas as bibliotecas carregaram
-          await this.verifyLibraries();
           await this.setupThreeJS();
+          await this.waitForIFCModules();
           await this.setupIFCLoader();
           await this.loadModels();
           this.setupEventListeners();
           this.animate();
-          
-          this.updateLoading('Visualizador pronto!', 100);
           
         } catch (error) {
           this.handleError(error);
         }
       }
       
-      async verifyLibraries() {
-        this.updateLoading('Verificando bibliotecas carregadas...', 10);
-        
-        const libraries = {
-          'Three.js': () => typeof THREE !== 'undefined',
-          'OrbitControls': () => typeof THREE.OrbitControls !== 'undefined',
-          'WebIFC': () => typeof WebIFC !== 'undefined',
-          'WebIFCThree': () => typeof WebIFCThree !== 'undefined'
-        };
-        
-        for (const [libName, checkFn] of Object.entries(libraries)) {
-          if (!checkFn()) {
-            throw new Error(`Biblioteca ${libName} não carregada`);
-          }
-          this.updateLoading(`${libName} verificada`, 10 + Object.keys(libraries).indexOf(libName) * 10);
-          await this.delay(100); // Pequeno delay para feedback visual
-        }
-        
-        this.updateLoading('Todas as bibliotecas verificadas', 50);
-      }
-      
       async setupThreeJS() {
-        this.updateLoading('Configurando ambiente 3D...', 55);
+        this.updateLoading('Configurando ambiente 3D...', 10);
         
         // Cena
         this.scene = new THREE.Scene();
@@ -224,23 +293,68 @@
         // Iluminação
         this.setupLighting();
         
-        this.updateLoading('Ambiente 3D configurado', 65);
+        this.updateLoading('Ambiente 3D configurado', 30);
+      }
+      
+      async waitForIFCModules() {
+        this.updateLoading('Aguardando carregamento das bibliotecas IFC...', 40);
+        
+        // Verificar se o WASM local está disponível
+        await this.checkLocalWASM();
+        
+        return new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('Timeout no carregamento das bibliotecas IFC'));
+          }, 20000); // 20 segundos timeout
+          
+          // Sucesso
+          window.addEventListener('ifc-modules-loaded', () => {
+            clearTimeout(timeout);
+            this.modulesLoaded = true;
+            this.updateLoading('Bibliotecas IFC carregadas com sucesso', 60);
+            resolve();
+          });
+          
+          // Erro
+          window.addEventListener('ifc-modules-error', (event) => {
+            clearTimeout(timeout);
+            reject(new Error(`Falha no carregamento: ${event.detail?.message || 'Erro desconhecido'}`));
+          });
+        });
+      }
+      
+      async checkLocalWASM() {
+        try {
+          // Verificar se os arquivos WASM locais existem
+          for (const file of this.wasmConfig.files) {
+            const response = await fetch(this.wasmConfig.localPath + file);
+            if (!response.ok) {
+              console.warn(`⚠️ Arquivo WASM local não encontrado: ${file}`);
+            } else {
+              console.log(`✅ Arquivo WASM local disponível: ${file}`);
+            }
+          }
+        } catch (error) {
+          console.warn('⚠️ Não foi possível verificar arquivos WASM locais:', error);
+        }
       }
       
       async setupIFCLoader() {
+        if (!this.modulesLoaded) {
+          throw new Error('Módulos IFC não carregados');
+        }
+        
         this.updateLoading('Configurando carregador IFC...', 70);
         
         try {
-          // Inicializar API IFC
-          this.ifcAPI = new WebIFC.IfcAPI();
-          this.updateLoading('Inicializando API IFC...', 75);
+          // Usar a instância já criada ou criar uma nova
+          this.ifcAPI = window.ifcAPIInstance || new window.WebIFC.IfcAPI();
           
-          // Usar WASM local
-          await this.ifcAPI.Init();
+          // Configurar loader do Three.js
+          this.ifcLoader = new window.WebIFCThree.IfcLoader();
           
-          // Configurar loader
-          this.ifcLoader = new WebIFCThree.IFCLoader();
-          this.ifcLoader.ifcManager.setWasmPath("./wasm/");
+          // Usar o gerenciador de API já configurado
+          this.ifcLoader.ifcManager.ifcAPI = this.ifcAPI;
           
           this.updateLoading('Carregador IFC configurado', 80);
           
@@ -266,20 +380,19 @@
       }
       
       async loadModels() {
-        this.updateLoading('Preparando para carregar modelo IFC...', 85);
+        this.updateLoading('Preparando para carregar modelos...', 85);
         
         for (let i = 0; i < this.MODEL_URLS.length; i++) {
           const modelUrl = this.MODEL_URLS[i];
           await this.loadSingleModel(modelUrl, i);
         }
         
-        // Ocultar loading suavemente após 2 segundos
+        this.updateLoading('Modelo carregado com sucesso!', 100);
+        
+        // Ocultar loading suavemente
         setTimeout(() => {
-          this.elements.loadingOverlay.style.opacity = '0';
-          setTimeout(() => {
-            this.elements.loadingOverlay.classList.add('hidden');
-          }, 1000);
-        }, 2000);
+          this.elements.loadingOverlay.classList.add('hidden');
+        }, 1000);
       }
       
       async loadSingleModel(url, index) {
@@ -287,15 +400,12 @@
         this.elements.loadingDetails.textContent = `Arquivo: ${url.split('/').pop()}`;
         
         try {
-          // Verificar se o arquivo existe
+          // Verificar se o arquivo IFC existe
           const response = await fetch(url);
           if (!response.ok) {
-            throw new Error(`Arquivo não encontrado: ${url}`);
+            throw new Error(`Arquivo IFC não encontrado: ${url}`);
           }
           
-          this.updateLoading('Processando arquivo IFC...', 95);
-          
-          // Carregar modelo
           const model = await this.ifcLoader.loadAsync(url);
           this.scene.add(model);
           this.models.push(model);
@@ -303,14 +413,11 @@
           // Ajustar câmera
           this.fitModelToView(model);
           
-          this.elements.loadingDetails.innerHTML += '<br><span class="success">✅ Modelo carregado com sucesso!</span>';
-          this.updateLoading('Modelo carregado com sucesso!', 100);
-          
           console.log(`✅ Modelo carregado:`, url);
           
         } catch (error) {
           console.error(`❌ Erro ao carregar modelo ${url}:`, error);
-          throw new Error(`Falha no carregamento: ${error.message}`);
+          throw new Error(`Falha no carregamento do arquivo IFC: ${error.message}`);
         }
       }
       
@@ -319,9 +426,11 @@
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
         const maxDim = Math.max(size.x, size.y, size.z);
+        const fov = this.camera.fov * (Math.PI / 180);
+        const cameraZ = Math.abs(maxDim / Math.sin(fov / 2));
         
         this.camera.position.copy(center);
-        this.camera.position.z += maxDim * 2;
+        this.camera.position.z += cameraZ * 1.5;
         this.controls.target.copy(center);
         this.controls.update();
       }
@@ -341,16 +450,29 @@
           this.camera.updateProjectionMatrix();
           this.renderer.setSize(window.innerWidth, window.innerHeight);
         });
+        
+        // Botão de alternativa
+        if (this.elements.tryAlternative) {
+          this.elements.tryAlternative.addEventListener('click', () => {
+            this.tryAlternativeLoad();
+          });
+        }
+      }
+      
+      tryAlternativeLoad() {
+        this.elements.loadingDetails.innerHTML += '<br><br>🔄 Tentando carregamento alternativo...';
+        this.updateLoading('Tentando abordagem alternativa...', 10);
+        
+        // Tentar recarregar com parâmetro para forçar CDN
+        setTimeout(() => {
+          window.location.search = '?forceCDN=true';
+        }, 1000);
       }
       
       animate() {
         requestAnimationFrame(() => this.animate());
         this.controls.update();
         this.renderer.render(this.scene, this.camera);
-      }
-      
-      delay(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
       }
       
       handleError(error) {
@@ -362,20 +484,35 @@
             <strong>Erro:</strong> ${error.message}
           </div>
           <div style="margin-top: 10px; font-size: 12px;">
-            Verifique:<br>
-            1. Se todas as bibliotecas estão na pasta /libs/<br>
-            2. Se o arquivo WASM está em /wasm/<br>
-            3. Se o arquivo IFC está em /public/ifc-models/<br>
-            4. Console (F12) para detalhes
+            Possíveis soluções:<br>
+            1. Verifique se a pasta <strong>public/wasm/</strong> existe<br>
+            2. Verifique os arquivos WASM na pasta<br>
+            3. Tente o carregamento alternativo abaixo<br>
+            4. Verifique se o arquivo IFC existe em: ${this.MODEL_URLS[0]}
           </div>
         `;
+        
+        // Mostrar botão de alternativa
+        this.elements.alternativeSolutions.style.display = 'block';
       }
     }
     
-    // Inicialização quando a página carregar
+    // Inicialização segura com tratamento de erros globais
     window.addEventListener('load', async () => {
-      const viewer = new IFCPGEViewer();
-      await viewer.init();
+      try {
+        const viewer = new IFCPGEViewer();
+        await viewer.init();
+      } catch (error) {
+        console.error('Erro fatal na inicialização:', error);
+        document.getElementById('loading-text').textContent = 'Erro fatal na inicialização';
+        document.getElementById('loading-details').innerHTML = 
+          `<div class="error">Erro crítico: ${error.message}</div>`;
+      }
+    });
+    
+    // Fallback para caso os módulos falhem
+    window.addEventListener('error', (event) => {
+      console.error('Erro global capturado:', event.error);
     });
   </script>
 </body>

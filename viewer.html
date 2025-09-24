@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Visualizador IFC</title>
+    <title>Teste 3D - IFC PGE</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <style>
@@ -13,16 +13,16 @@
             color: white; 
             font-family: Arial; 
             z-index: 1000;
-            background: rgba(0,0,0,0.7);
-            padding: 10px;
-            border-radius: 5px;
+            background: rgba(0,0,0,0.8);
+            padding: 15px;
+            border-radius: 10px;
         }
-        #back {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            color: white;
-            background: rgba(0,0,0,0.7);
+        #test { 
+            position: absolute; 
+            top: 10px; 
+            right: 10px; 
+            color: white; 
+            background: #007bff;
             padding: 10px;
             border-radius: 5px;
             text-decoration: none;
@@ -31,130 +31,56 @@
     </style>
 </head>
 <body>
-    <a id="back" href="index.html">← Voltar</a>
-    <div id="info">Carregando...</div>
+    <a id="test" href="index.html">← Voltar</a>
+    <div id="info">Carregando teste 3D...</div>
 
     <script>
-        console.log('🚀 Iniciando visualizador...');
+        console.log('=== TESTE 3D INICIADO ===');
         
-        // 1. Configuração básica do Three.js
+        // 1. Configuração SIMPLES do Three.js
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x222222);
+        scene.background = new THREE.Color(0x1a1a1a);
         
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(10, 10, 10);
+        camera.position.z = 5;
         
         const renderer = new THREE.WebGLRenderer();
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
         
-        // 2. Luzes básicas
-        const ambientLight = new THREE.AmbientLight(0x404040);
-        scene.add(ambientLight);
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight.position.set(50, 50, 50);
-        scene.add(directionalLight);
-        
-        // 3. Controles de câmera
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        
-        // 4. Criar um cubo de teste (PARA VERIFICAR SE O THREE.JS FUNCIONA)
-        const geometry = new THREE.BoxGeometry(2, 2, 2);
+        // 2. Criar um objeto 3D simples (CUBO)
+        const geometry = new THREE.BoxGeometry(1, 1, 1);
         const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
         const cube = new THREE.Mesh(geometry, material);
         scene.add(cube);
         
-        document.getElementById('info').textContent = 'Three.js carregado! Aguardando IFC...';
+        // 3. Controles de câmera
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
         
-        // 5. Tentar carregar IFC de forma segura
-        function loadIFC() {
-            // Verificar se as bibliotecas IFC estão carregadas
-            if (typeof WebIFC === 'undefined') {
-                document.getElementById('info').innerHTML = '❌ WebIFC não carregado<br>Tentando carregar...';
-                loadIFCLibraries();
-                return;
-            }
-            
-            startIFCLoading();
-        }
+        // 4. Atualizar interface
+        document.getElementById('info').innerHTML = '✅ Three.js Funcionando!<br>🎯 Cubo 3D Carregado<br>🚀 IFC será carregado...';
         
-        function loadIFCLibraries() {
-            // Carregar bibliotecas IFC dinamicamente
-            const script1 = document.createElement('script');
-            script1.src = 'https://unpkg.com/web-ifc@0.0.44/web-ifc-api.js';
-            script1.onload = () => {
-                const script2 = document.createElement('script');
-                script2.src = 'https://unpkg.com/web-ifc-three@0.0.120/dist/web-ifc-three.js';
-                script2.onload = startIFCLoading;
-                document.head.appendChild(script2);
-            };
-            document.head.appendChild(script1);
-        }
-        
-        async function startIFCLoading() {
-            try {
-                document.getElementById('info').textContent = '🔄 Inicializando IFC.js...';
-                
-                const ifcAPI = new WebIFC.IfcAPI();
-                await ifcAPI.Init();
-                
-                const ifcLoader = new WebIFCThree.IfcLoader();
-                ifcLoader.ifcManager.setWasmPath("https://unpkg.com/web-ifc@0.0.44/");
-                
-                document.getElementById('info').textContent = '📦 Carregando modelo IFC...';
-                
-                // Tentar carregar o IFC
-                const model = await ifcLoader.load('./public/IFC-ELE-SEINF-PGE.ifc');
-                scene.add(model);
-                
-                // Remover cubo de teste
-                scene.remove(cube);
-                
-                // Ajustar câmera
-                const box = new THREE.Box3().setFromObject(model);
-                const center = box.getCenter(new THREE.Vector3());
-                const size = box.getSize(new THREE.Vector3());
-                
-                camera.position.copy(center);
-                camera.position.z += size.length() * 1.5;
-                controls.target.copy(center);
-                controls.update();
-                
-                document.getElementById('info').textContent = '✅ IFC Carregado com Sucesso!';
-                
-            } catch (error) {
-                console.error('Erro no IFC:', error);
-                document.getElementById('info').innerHTML = '❌ Erro no IFC<br>Mostrando cubo de teste';
-                // Mantém o cubo visível como fallback
-            }
-        }
-        
-        // 6. Animação
+        // 5. Animação do cubo
         function animate() {
             requestAnimationFrame(animate);
             
-            // Animação simples do cubo (se ainda estiver na cena)
-            if (scene.children.includes(cube)) {
-                cube.rotation.x += 0.01;
-                cube.rotation.y += 0.01;
-            }
+            cube.rotation.x += 0.01;
+            cube.rotation.y += 0.01;
             
             controls.update();
             renderer.render(scene, camera);
         }
         
-        // 7. Iniciar
         animate();
         
-        // Tentar carregar IFC após um breve delay
-        setTimeout(loadIFC, 1000);
-        
-        // Redimensionamento
+        // 6. Redimensionamento
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
+        
+        console.log('✅ Teste 3D concluído com sucesso!');
     </script>
 </body>
 </html>

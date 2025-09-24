@@ -4,6 +4,10 @@
     {
       "src": "*.html",
       "use": "@vercel/static"
+    },
+    {
+      "src": "public/**/*",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
@@ -12,12 +16,19 @@
       "dest": "/public/$1"
     },
     {
-      "src": "/viewer.html",
-      "dest": "/viewer.html"
-    },
-    {
       "src": "/(.*)",
-      "dest": "/index.html"
+      "dest": "/$1"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/public/wasm/(.*)",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/wasm"
+        }
+      ]
     }
   ]
 }
